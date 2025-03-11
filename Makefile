@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := chrdevbase.0
+obj-m := led.0
 
 build : kernel_Modules
 
