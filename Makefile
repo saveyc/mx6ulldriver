@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := newchrled.0
+obj-m := gpioled.o
 
 build : kernel_Modules
 
