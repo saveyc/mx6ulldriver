@@ -7,8 +7,8 @@
 #include "errno.h"
 #include "stdlib.h"
 
-#define LEDOFF  0
-#define LEDON   1
+#define BEEPOFF  0
+#define BEEPON   1
 
 
 
