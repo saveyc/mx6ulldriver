@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := gpioled.o
+obj-m := atomic.o
 
 build : kernel_Modules
 
