@@ -8,12 +8,14 @@
 #include <linux/gpio.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <asm/mach/map.h>
 #include <asm/uacess.h>
 #include <asm/io.h>
 
 #define  NEWCHRLED_CNT      1
-#define  NEWCHRLED_NAME    "newchrled"
+#define  NEWCHRLED_NAME    "dtsled"
 #define  LEDOFF             0
 #define  LEDON              1
 
@@ -36,6 +38,7 @@ struct newchrdev_led{
     struct device *device;
     int major;
     int minor;
+    struct device_node *node;
 }
 
 struct newchedev_led newchrled;
@@ -110,6 +113,68 @@ static struct file_operations led_fops = {
 static int __init led_init(void)
 {
     u32 val = 0;
+    int ret = 0;
+    u32 regdata[14];
+    const char* str;
+    struct property *proper;
+
+    newchrled.node = of_find_node_by_path("/alphaled");
+    if(newchrled.node == NULL){
+        printk("alphaled node can not find \r\n");
+        return -EINVAL;
+    }
+    else{
+        printk("alphaled node has been found \r\n");
+    }
+
+    proper = of_find_property(newchrled.node,"compitable",NULL);
+    if(proper == NULL){
+        printk("compatible property find failed \r\n");
+    }
+    else{
+        printk("compatible = %s\r\n",(char*)proper->value);
+    }
+
+    ret = of_property_read_string(newchrled.node,"status",&str);
+    if(ret < 0){
+        printk("status read failed \r\n");
+    }
+    else{
+        printk("status = %s \r\n",str);
+    }
+
+    ret = of_property_read_u32_array(newchrled.node,"reg",regdata,10);
+    if(ret < 0){   
+        printk("reg property read failed \r\n");
+    }
+    else{
+        u8 i =0;
+        printk("regdata:\r\n");
+        for(i=0;i<10;i++){
+            printk("%#x",regdata[i]);
+        }
+        printk("\r\n");
+    }
+
+#if 0
+    IMX6U_CCM_CCGR1 = ioremap(regdata[0],regdata[1]);
+    IMX6U_SW_MUX_GPIO1_IO03 = ioremap(regdata[2],regdata[3]);
+    IMX6U_SW_PAD_GPIO1_IO03 = ioremap(regdata[4],regdata[5]);
+    IMX6U_GPIO1_DR = ioremap(regdata[6],regdata[7]);
+    IMX6U_GPIO1_GDIR = ioremap(regdata[8],regdata[9]);
+#else
+    IMX6U_CCM_CCGR1 = of_iomap(newchrled.node,0);
+    IMX6U_SW_MUX_GPIO1_IO03 = of_iomap(newchrled.node,1);
+    IMX6U_SW_PAD_GPIO1_IO03 = of_iomap(newchrled.node,2);
+    IMX6U_GPIO1_DR = of_iomap(newchrled.node,3);
+    IMX6U_GPIO1_GDIR = of_iomap(newchrled.node,4);
+
+#endif
+
+
+
+
+
     IMX6U_CCM_CCGR1 = ioremap(CCM_CCGR1_BASE,4);
     IMX6U_SW_MUX_GPIO1_IO03 = ioremap(SW_MUX_GPIO1_IO03_BASE,4);
     IMX6U_SW_PAD_GPIO1_IO03 = ioremap(SW_PAD_GPIO1_IO03_BASE,4);
