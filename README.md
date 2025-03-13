@@ -1,3 +1,3 @@
-# semaphore_09
-led test
+# imx6uirq_12
+program imx6uirq
 

@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := timer.o
+obj-m := imx6uirq.o
 
 build : kernel_Modules
 
