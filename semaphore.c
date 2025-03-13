@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_gpio.h>
+#include <linux/semaphore.h>
 #include <asm/mach/map.h>
 #include <asm/uacess.h>
 #include <asm/io.h>
@@ -29,8 +30,7 @@ struct gpioled_dev{
     int minor;
     int gpio;
     struct device_node *node;
-    spinlock_t lock;
-    int dev_stat;
+    struct semaphore sem;
 };
 
 struct gpioled_dev gpioled;
@@ -41,13 +41,9 @@ static int led_open(struct inode *inode, struct file *filp)
     unsigned long flags;
     filp->private_data = &gpioled;
 
-    spin_lock_irqsave(&gpioled.lock,flags);
-    if(gpioled.dev_stat){
-        spin_unlock_irqrestore(&gpioled.lock,flags);
-        return -EBUSY;
-    }
-    gpioled.dev_stat++;
-    spin_unlock_irqrestore(&gpioled.lock,flags);
+   if(down_interruptible(&gpioled.sem)){
+       return -ERESTARTSYS;
+   }
 
 
     return 0;
@@ -85,12 +81,7 @@ static ssize_t led_write(struct file *filp, const char __user *buf, size_t count
 
 static int led_release(struct inode *inode, struct file *filp)
 {
-    unsigned long flags;
-    spin_lock_irqsave(&gpioled.lock,flags);
-    if(gpioled.dev_stat > 0){
-        gpioled.dev_stat--;
-    }
-    spin_unlock_irqrestore(&gpioled.lock,flags);
+    up(&gpioled.sem);
 
     return 0;
 }   
@@ -108,7 +99,7 @@ static int __init led_init(void)
     int ret = 0;
     int gpio = 0;
 
-    spin_lock_init(&gpioled.lock);
+    sema_init(&gpioled.sem, 1);
 
     gpioled.node = of_find_node_by_path("/gpioled");
     if(gpioled.node == NULL) {
