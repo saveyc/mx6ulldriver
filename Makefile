@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := key.o
+obj-m := timer.o
 
 build : kernel_Modules
 
