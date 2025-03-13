@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := atomic.o
+obj-m := spinlock.o
 
 build : kernel_Modules
 

@@ -29,19 +29,27 @@ struct gpioled_dev{
     int minor;
     int gpio;
     struct device_node *node;
-    atomic_t lock;
+    spinlock_t lock;
+    int dev_stat;
 };
 
 struct gpioled_dev gpioled;
 
 static int led_open(struct inode *inode, struct file *filp)
 {
-    if(!atomic_dec_and_test(&gpioled.lock)) {
-        atomic_inc(&gpioled.lock);
+
+    unsigned long flags;
+    filp->private_data = &gpioled;
+
+    spin_lock_irqsave(&gpioled.lock,flags);
+    if(gpioled.dev_stat){
+        spin_unlock_irqrestore(&gpioled.lock,flags);
         return -EBUSY;
     }
+    gpioled.dev_stat++;
+    spin_unlock_irqrestore(&gpioled.lock,flags);
 
-    filp->private_data = &gpioled;
+
     return 0;
 }
 
@@ -77,7 +85,13 @@ static ssize_t led_write(struct file *filp, const char __user *buf, size_t count
 
 static int led_release(struct inode *inode, struct file *filp)
 {
-    atomic_inc(&gpioled.lock);
+    unsigned long flags;
+    spin_lock_irqsave(&gpioled.lock,flags);
+    if(gpioled.dev_stat > 0){
+        gpioled.dev_stat--;
+    }
+    spin_unlock_irqrestore(&gpioled.lock,flags);
+
     return 0;
 }   
 
@@ -94,7 +108,7 @@ static int __init led_init(void)
     int ret = 0;
     int gpio = 0;
 
-    atomic_set(&gpioled.lock, 1);
+    spin_lock_init(&gpioled.lock);
 
     gpioled.node = of_find_node_by_path("/gpioled");
     if(gpioled.node == NULL) {
