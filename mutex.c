@@ -30,7 +30,7 @@ struct gpioled_dev{
     int minor;
     int gpio;
     struct device_node *node;
-    struct semaphore sem;
+    struct mutex mutexLock;
 };
 
 struct gpioled_dev gpioled;
@@ -41,9 +41,9 @@ static int led_open(struct inode *inode, struct file *filp)
     unsigned long flags;
     filp->private_data = &gpioled;
 
-   if(down_interruptible(&gpioled.sem)){
-       return -ERESTARTSYS;
-   }
+    if(mutex_lock_interruptible(&gpioled.mutexLock)) {
+        return -EBUSY;
+    }
 
 
     return 0;
@@ -81,7 +81,7 @@ static ssize_t led_write(struct file *filp, const char __user *buf, size_t count
 
 static int led_release(struct inode *inode, struct file *filp)
 {
-    up(&gpioled.sem);
+    mutex_unlock(&gpioled.mutexLock);
 
     return 0;
 }   
@@ -99,7 +99,7 @@ static int __init led_init(void)
     int ret = 0;
     int gpio = 0;
 
-    sema_init(&gpioled.sem, 1);
+    mutex_init(&gpioled.mutexLock);
 
     gpioled.node = of_find_node_by_path("/gpioled");
     if(gpioled.node == NULL) {

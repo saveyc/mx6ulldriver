@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := semaphore.o
+obj-m := mutex.o
 
 build : kernel_Modules
 
