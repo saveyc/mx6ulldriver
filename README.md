@@ -1,3 +1,3 @@
-# imx6uirq_14
-program blockIo
+# imx6uirq_15
+program nonblockIo
 

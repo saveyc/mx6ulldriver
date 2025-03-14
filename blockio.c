@@ -16,12 +16,13 @@
 #include <linux/irq.h>
 #include <linux.of_irq.h> 
 #include <linux/wait.h>
+#include <linux/poll.h>
 #include <asm/mach/map.h>
 #include <asm/uacess.h>
 #include <asm/io.h>
 
 #define IMX6UIRQ_CNT        1
-#define IMX6UIRQ_NAME       "blockio"
+#define IMX6UIRQ_NAME       "noblockio"
 #define KEY_VALUE           0x01
 #define KEY_INVALUE         0xFF
 #define KEY_NUM             1
@@ -79,10 +80,6 @@ void timer_function(unsigned long arg)
         atomic_set(&dev->keyValue, 0x80 | keydesc->value);
     }
     
-    if(atomic_read(&dev->keyRelease) == 1){
-        wake_up_interruptible(&dev->r_wait);
-    }
-
 }
 
 static int keyio_init(void)
@@ -150,6 +147,14 @@ static ssize_t imx6uirq_read(struct file* filp, char __user * buf, size_t cnt ,l
     struct imx6uirq_dev *dev = filp->private_data;
 
 
+    if(filp->f_flags & O_NONBLOCK){
+        if(atomic_read(&imx6uirq.keyRelease) == 0){
+            return -EAGAIN;
+        }
+    }
+
+#if 0 
+
     DECLARE_WAITQUEUE(wait, current);
     if(atomic_read(&imx6uirq.keyRelease) == 0){
         add_wait_queue(&imx6uirq.r_wait, &wait);
@@ -162,6 +167,7 @@ static ssize_t imx6uirq_read(struct file* filp, char __user * buf, size_t cnt ,l
         __set_current_state(TASK_RUNNING);
         remove_wait_queue(&(dev->r_wait), &wait);
     }
+#endif        
 
     keyvalue = atomic_read(&imx6uirq.keyValue);
     keyrelease = atomic_read(&imx6uirq.keyRelease);
@@ -191,6 +197,21 @@ data_error:
     return -EINVAL;
 }
 
+
+static unsigned int imx6uirq_poll(struct file* filp, poll_table* wait)
+{
+    struct imx6uirq_dev *dev = filp->private_data;
+    unsigned int mask = 0;
+
+    poll_wait(filp, &dev->r_wait, wait);
+
+    if(atomic_read(&imx6uirq.keyRelease) == 1){
+        mask = POLLIN | POLLRDNORM;
+    }
+    return mask;
+}
+
+
 static struct file_operations imx6uirq_fops = {
     .owner = THIS_MODULE,
     .open = imx6uirq_open,
@@ -198,7 +219,9 @@ static struct file_operations imx6uirq_fops = {
     .write = NULL,
     .release = NULL,
     .unlocked_ioctl = NULL,
+    .poll = imx6uirq_poll,
 };
+
 
 
 static int __init imx6uirq_init(void)
