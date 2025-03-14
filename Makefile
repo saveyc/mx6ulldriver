@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := imx6uirq.o
+obj-m := blockio.o
 
 build : kernel_Modules
 

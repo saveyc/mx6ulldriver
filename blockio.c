@@ -15,12 +15,13 @@
 #include <linux/timer.h>
 #include <linux/irq.h>
 #include <linux.of_irq.h> 
+#include <linux/wait.h>
 #include <asm/mach/map.h>
 #include <asm/uacess.h>
 #include <asm/io.h>
 
 #define IMX6UIRQ_CNT        1
-#define IMX6UIRQ_NAME       "imx6uirq"
+#define IMX6UIRQ_NAME       "blockio"
 #define KEY_VALUE           0x01
 #define KEY_INVALUE         0xFF
 #define KEY_NUM             1
@@ -46,6 +47,8 @@ struct imx6uirq_dev{
     int curKeyNum;
     struct timer_list timer;
     struct irq_keydesc keyDesc[KEY_NUM];
+
+    wait_queue_head_t r_wait;
 }
 
 struct imx6uirq_dev imx6uirq;
@@ -75,6 +78,11 @@ void timer_function(unsigned long arg)
         atomic_set(&dev->keyRelease, 1);
         atomic_set(&dev->keyValue, 0x80 | keydesc->value);
     }
+    
+    if(atomic_read(&dev->keyRelease) == 1){
+        wake_up_interruptible(&dev->r_wait);
+    }
+
 }
 
 static int keyio_init(void)
@@ -121,6 +129,9 @@ static int keyio_init(void)
 
     init_timer(&imx6uirq.timer);
     imx6uirq.timer.function = timer_function;
+
+    init_waitqueue_head(&imx6uirq.r_wait);
+
     return 0;
 }
 
@@ -138,8 +149,23 @@ static ssize_t imx6uirq_read(struct file* filp, char __user * buf, size_t cnt ,l
     unsigned char keyrelease;
     struct imx6uirq_dev *dev = filp->private_data;
 
+
+    DECLARE_WAITQUEUE(wait, current);
+    if(atomic_read(&imx6uirq.keyRelease) == 0){
+        add_wait_queue(&imx6uirq.r_wait, &wait);
+        __set_current_state(TASK_INTERRUPTIBLE)
+        schedule();
+        if(signal_pending(current)){
+            ret = -ERESTARTSYS;
+            goto wait_error;
+        }
+        __set_current_state(TASK_RUNNING);
+        remove_wait_queue(&(dev->r_wait), &wait);
+    }
+
     keyvalue = atomic_read(&imx6uirq.keyValue);
     keyrelease = atomic_read(&imx6uirq.keyRelease);
+
 
     if(keyrelease == 1){
         if(keyvalue & 0x80){
@@ -153,9 +179,14 @@ static ssize_t imx6uirq_read(struct file* filp, char __user * buf, size_t cnt ,l
         atomic_set(&imx6uirq.keyRelease, 0);
     }
     else{
-        got data error;
+        goto data_error;
     }
     return 0;
+wait_error:
+    set_current_state(TASK_RUNNING);
+    remove_wait_queue(&(dev->r_wait), &wait);
+    return ret;
+
 data_error:
     return -EINVAL;
 }

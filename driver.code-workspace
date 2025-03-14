@@ -7,7 +7,8 @@
 	"settings": {
 		"files.associations": {
 			"types.h": "c",
-			"init.h": "c"
+			"init.h": "c",
+			"timer.h": "c"
 		}
 	}
 }
