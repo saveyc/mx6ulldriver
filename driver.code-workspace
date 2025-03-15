@@ -8,7 +8,8 @@
 		"files.associations": {
 			"types.h": "c",
 			"init.h": "c",
-			"timer.h": "c"
+			"timer.h": "c",
+			"map.h": "c"
 		}
 	}
 }

@@ -17,12 +17,13 @@
 #include <linux.of_irq.h> 
 #include <linux/wait.h>
 #include <linux/poll.h>
+#include <linux/fcntl.h>
 #include <asm/mach/map.h>
 #include <asm/uacess.h>
 #include <asm/io.h>
 
 #define IMX6UIRQ_CNT        1
-#define IMX6UIRQ_NAME       "noblockio"
+#define IMX6UIRQ_NAME       "fasync"
 #define KEY_VALUE           0x01
 #define KEY_INVALUE         0xFF
 #define KEY_NUM             1
@@ -50,6 +51,7 @@ struct imx6uirq_dev{
     struct irq_keydesc keyDesc[KEY_NUM];
 
     wait_queue_head_t r_wait;
+    struct fasync_struct* fasync;
 }
 
 struct imx6uirq_dev imx6uirq;
@@ -70,6 +72,7 @@ void timer_function(unsigned long arg)
     struct irq_keydesc *keydesc;
     struct imx6uirq_dev *dev = (struct imx6uirq_dev *)arg;
 
+
     num = dev->curKeyNum;
     keydesc = &dev->keyDesc[num];
     value = gpio_get_value(keydesc->gpio);
@@ -78,6 +81,12 @@ void timer_function(unsigned long arg)
     }else{
         atomic_set(&dev->keyRelease, 1);
         atomic_set(&dev->keyValue, 0x80 | keydesc->value);
+    }
+
+    if(atomic_read(&dev->keyRelease) == 1){
+        if(dev->fasync){
+            kill_fasync(&dev->fasync,SIGIO,POLL_IN);
+        }
     }
     
 }
@@ -212,6 +221,18 @@ static unsigned int imx6uirq_poll(struct file* filp, poll_table* wait)
 }
 
 
+static int imx6uirq_fasync(int fd, struct file* filp, int on)
+{
+    struct imx6uirq_dev *dev = filp->private_data;
+    return fasync_helper(fd, filp, on, &dev->fasync);
+}
+
+static int imx6uirq_release(struct inode* inode, struct file* filp)
+{
+
+    return imx6uirq_fasync(-1,filp,0);
+}
+
 static struct file_operations imx6uirq_fops = {
     .owner = THIS_MODULE,
     .open = imx6uirq_open,
@@ -220,6 +241,8 @@ static struct file_operations imx6uirq_fops = {
     .release = NULL,
     .unlocked_ioctl = NULL,
     .poll = imx6uirq_poll,
+    .fasync = imx6uirq_fasync,
+    .release = imx6uirq_release,
 };
 
 

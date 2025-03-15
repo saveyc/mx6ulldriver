@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := nonblockio.o
+obj-m := fasync.o
 
 build : kernel_Modules
 
