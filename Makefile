@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := platformDevice.o platformDevice.o
+obj-m := dtsplatled.o
 
 build : kernel_Modules
 

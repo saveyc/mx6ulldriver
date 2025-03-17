@@ -26,16 +26,9 @@
 #include <asm/io.h>
 
 #define  LEDDEV_CNT         1
-#define  LEDDEV_NAME        "platformled"
+#define  LEDDEV_NAME        "dtsplatled"
 #define  LEDOFF             0
 #define  LEDON              1
-
-static void __iomem*        IMX6U_CCM_CCGR1;
-static void __iomem*        IMX6U_SW_MUX_GPIO1_IO03;
-static void __iomem*        IMX6U_SW_PAD_GPIO1_IO03;
-static void __iomem*        IMX6U_GPIO1_DR;
-static void __iomem*        IMX6U_GPIO1_GDIR;
-
 
 struct leddev_dev{
     dev_t devid;
@@ -44,6 +37,8 @@ struct leddev_dev{
     struct device* device;
     int major;
     int minor;
+    struct device_node* node;
+    int led0;
 };
 
 struct leddev_dev   ledDev;
@@ -52,14 +47,10 @@ static void led0_switch(u8 sta)
 {
     u32 val = 0;
     if(sta == LEDOFF){
-        val = readl(IMX6U_GPIO1_DR);
-        val |= (1 << 3);
-        writel(val, IMX6U_GPIO1_DR);
+        gpio_set_value(ledDev.led0, 1);
     }
     else if(sta == LEDON){
-        val = readl(IMX6U_GPIO1_DR);
-        val &= ~(1 << 3);
-        writel(val, IMX6U_GPIO1_DR);
+        gpio_set_value(ledDev.led0, 0);
     }
 
 }
@@ -108,38 +99,21 @@ static int led_probe(struct platform_device *pdev)
 
     printk("led probe\r\n");
     
-    for(i=0;i<5;i++){   
-        res[i] = platform_get_resource(pdev,IORESOURCE_MEM,i);
-        if(res[i] == NULL){
-            dev_err(&pdev->dev, "failed to get resource %d\n", i);
-            return -ENXIO;
-        }
-        ressize[i] = resource_size(res[i]);
+    ledDev.node = of_find_node_by_path("/leds/led0");
+    if(!ledDev.node){
+        printk("can't find led0 node\r\n");
+        return -EINVAL;
     }
 
-    IMX6U_CCM_CCGR1 = ioremap(res[0]->start, ressize[0]);
-    IMX6U_SW_MUX_GPIO1_IO03 = ioremap(res[1]->start, ressize[1]);
-    IMX6U_SW_PAD_GPIO1_IO03 = ioremap(res[2]->start, ressize[2]);
-    IMX6U_GPIO1_DR = ioremap(res[3]->start, ressize[3]);
-    IMX6U_GPIO1_GDIR = ioremap(res[4]->start, ressize[4]);
+    ledDev.led0 = of_get_named_gpio(ledDev.node, "led-led0", 0);
+    if(ledDev.led0 < 0){
+        printk("can't find led0 gpio\r\n");
+        return -EINVAL;
+    }
 
+    gpio_request(ledDev.led0, "led-led0");
+    gpio_direction_output(ledDev.led0, 1);
 
-    val = readl(IMX6U_CCM_CCGR1);
-    val &= ~(0x3 << 26);
-    val |= (3 << 26);
-    writel(val, IMX6U_CCM_CCGR1);
-
-    writel(0x5, IMX6U_SW_MUX_GPIO1_IO03);
-    writel(0x10B0, IMX6U_SW_PAD_GPIO1_IO03);
-
-    val = readl(IMX6U_GPIO1_GDIR);
-    val &= ~(1 << 3);
-    val |= (1 << 3);
-    writel(val, IMX6U_GPIO1_GDIR);
-
-    val = readl(IMX6U_GPIO1_DR);
-    val |= (1 << 3);
-    writel(val, IMX6U_GPIO1_DR);
 
     if(ledDev.major){
         ledDev.devid = MKDEV(ledDev.major, 0);
@@ -169,6 +143,8 @@ static int led_probe(struct platform_device *pdev)
 
 static int led_remove(struct platform_device *pdev)
 {
+    gpio_set_value(ledDev.led0, 1);
+
     iounmap(IMX6U_CCM_CCGR1);
     iounmap(IMX6U_SW_MUX_GPIO1_IO03);
     iounmap(IMX6U_SW_PAD_GPIO1_IO03);
@@ -182,14 +158,22 @@ static int led_remove(struct platform_device *pdev)
     return 0;
 }
 
+static const struct of_device_id led_of_match[] = {  
+    { .compatible = "led0", },  
+    { },  
+};
+
 static struct platform_driver led_driver = {
     .probe = led_probe,
     .remove = led_remove,
     .driver = {
         .name = "imx6u-led",
         .owner = THIS_MODULE,
+        .of_match_table = led_of_match,
     },
 };
+
+
 
 static int __init led_init(void)
 {
