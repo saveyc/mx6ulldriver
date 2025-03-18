@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := dtsplatled.o
+obj-m := miscbeep.o
 
 build : kernel_Modules
 

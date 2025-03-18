@@ -11,16 +11,19 @@
 #include "linux/ioctl.h"
 #include "signal.h"
 
+#define BEEPOFF 0
+#define BEEPON 1
+
 
 int main(int argc, char* argv[])
 {
     char* filename;
     int fd,retval;
-    unsigned char databuf[2];
+    unsigned char databuf[1];
 
 
 
-    if(argc != e) {
+    if(argc != 3) {
         printf("Usage: %s <filename> 0 or 1\n",argv[0]);
         return -1;
     }
