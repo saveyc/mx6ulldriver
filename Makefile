@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := ap3216c.o
+obj-m := icm20608.o
 
 build : kernel_Modules
 
