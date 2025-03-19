@@ -1,6 +1,6 @@
 KERNELDIR = /home/k/linux/kernel
 CURRENT_PATH := $ (shell pwd)
-obj-m := miscbeep.o
+obj-m := ap3216c.o
 
 build : kernel_Modules
 

@@ -9,7 +9,8 @@
 			"types.h": "c",
 			"init.h": "c",
 			"timer.h": "c",
-			"map.h": "c"
+			"map.h": "c",
+			"poll.h": "c"
 		}
 	}
 }
